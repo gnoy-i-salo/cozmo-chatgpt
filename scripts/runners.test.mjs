@@ -21,10 +21,10 @@ function fixture(t) {
       encoding: 'utf8',
       env: { ...process.env, PATH: `${join(root, 'bin')}${delimiter}${process.env.PATH ?? ''}` },
     });
-  const addPackage = (scripts = {}) => {
-    mkdirSync(join(root, 'packages/core/src'), { recursive: true });
+  const addPackage = (scripts = {}, path = 'packages/core') => {
+    mkdirSync(join(root, path, 'src'), { recursive: true });
     writeFileSync(
-      join(root, 'packages/core/package.json'),
+      join(root, path, 'package.json'),
       JSON.stringify({ name: '@starter-app/core', scripts }),
     );
   };
@@ -61,5 +61,7 @@ test('real runner failures propagate and existing packages cannot use the empty-
   assert.equal(run('run-workspaces', 'build').status, 7);
   assert.equal(run('run-workspaces', 'typecheck').status, 7);
   assert.equal(run('run-tests', 'unit').status, 7);
+  assert.equal(run('run-tests', 'e2e').status, 0);
+  addPackage({}, 'apps/web');
   assert.equal(run('run-tests', 'e2e').status, 7);
 });
