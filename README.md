@@ -1,0 +1,94 @@
+# starter-app
+
+Пустая pnpm-монорепа с харнессом разработки на основе `proteus`. В `apps/` и `packages/` находятся только `.gitkeep`; продуктового кода нет.
+
+Готовы строгий TypeScript, ESLint с проверкой типов и правилами SolidJS, Prettier, Stylelint, Vitest, Playwright, LikeC4/FSD, выборочные проверки зависимых пакетов, Husky, Conventional Commits, GitHub Actions и Beads. Версии инструментов и lockfile взяты из локального `proteus` без обновления зависимостей.
+
+## Быстрый старт
+
+Требуются Node.js **24+** (версия для CI — `.node-version`) и **pnpm 11.9.0**. Для задач агента нужен отдельно установленный **Beads CLI (`bd`) 1.1.2** или совместимый. Kimi CLI нужен только для делегирования.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm beads:init
+pnpm check
+```
+
+Репозиторий использует ветку `trunk`. Установка зависимостей подключает Git hooks через Husky. При переносе файлов без `.git` сначала выполните `git init -b trunk`.
+
+## Структура
+
+```text
+apps/.gitkeep                 # будущие приложения
+packages/.gitkeep             # будущие общие пакеты
+architecture/workspace.c4     # модель зависимостей LikeC4
+scripts/                     # проверки и отрицательные fixtures
+.agents/skills/code-quality/  # локальный навык работы с кодом
+.beads/                      # настройки и переносимый snapshot задач
+.github/                     # CI, Dependabot, шаблон PR
+.husky/                      # проверки перед commit/push
+AGENTS.md                    # инструкции для агентов
+```
+
+## Команды
+
+| Команда                                         | Назначение                                                                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `pnpm check`                                    | Полная проверка формата, нейминга, архитектуры, харнесса, lint, типов, unit-тестов и сборки |
+| `pnpm check:changed [base]`                     | Изменения относительно `origin/trunk`, включая staged, unstaged и новые файлы               |
+| `pnpm check:staged`                             | Проверка staged-файлов с запретом частичного staging                                        |
+| `pnpm check:package core`                       | Пакет `@starter-app/core` и все зависящие от него пакеты                                    |
+| `pnpm test:harness`                             | Регрессионные и отрицательные проверки самого харнесса                                      |
+| `pnpm test` / `pnpm test:watch`                 | Unit-тесты / Vitest в режиме наблюдения                                                     |
+| `pnpm test:e2e`                                 | Playwright; для будущего приложения нужно добавить сервер и сценарии                        |
+| `pnpm build` / `pnpm typecheck`                 | Сборка пакетов / проверка типов пакетов и корневых конфигураций                             |
+| `pnpm lint` / `pnpm lint:styles`                | ESLint / SCSS Stylelint                                                                     |
+| `pnpm format` / `pnpm format:check`             | Форматирование / проверка Prettier                                                          |
+| `pnpm architecture`                             | Просмотр модели LikeC4                                                                      |
+| `pnpm check:architecture` / `pnpm check:naming` | Границы зависимостей / правила именования                                                   |
+| `pnpm check:rust`                               | Выполнить `check:rust` у пакетов, которые его объявили                                      |
+| `pnpm beads:ready` / `pnpm beads:export`        | Доступные задачи / экспорт snapshot                                                         |
+
+Пустая монорепа явно пропускает сборку пакетов, unit- и e2e-тесты. Проверки харнесса, архитектуры и конфигураций выполняются реально. После появления пакетов отсутствующие `build`/`typecheck` и отсутствие тестов больше не маскируются таким пропуском. E2E запускается отдельно от `pnpm check`, в CI — после него.
+
+## Первый пакет
+
+1. Создайте `packages/core/package.json` с `name: "@starter-app/core"`, `private: true`, `type: "module"` и командами `build`, `typecheck`.
+2. Создайте `src/`, `tsconfig.json` с `extends: "../../tsconfig.base.json"` и `include: ["src"]`. Для пакета без генерации файлов обе команды могут вызывать `tsc --noEmit`; для публикуемого внутри workspace build-output настройте отдельную сборку.
+3. Разместите реализацию в отдельном модуле, а в `src/index.ts` оставьте только явные реэкспорты. Добавьте `*.test.ts` рядом с кодом. Объявляйте внешние runtime-зависимости в manifest пакета.
+4. Добавьте элемент в блок `model` файла `architecture/workspace.c4`:
+
+   ```text
+   core = module "core" {
+     metadata {
+       package "@starter-app/core"
+       path "packages/core"
+     }
+   }
+   ```
+
+5. Для каждой внутренней зависимости добавьте `"@starter-app/core": "workspace:*"` в manifest потребителя и связь `consumer -> core "imports"` в модель.
+6. Выполните `pnpm install`, затем `pnpm check:package core` и `pnpm check`.
+
+Приложения размещаются в `apps/<name>` и следуют FSD. При добавлении первого приложения настройте `projects`, `baseURL` и `webServer` в `playwright.config.ts`, создайте `apps/<name>/e2e/*.spec.ts` и включите эти файлы в TypeScript project приложения или отдельный e2e `tsconfig.json`. CI использует установленный Chrome; локально можно запустить `PLAYWRIGHT_CHANNEL=chrome pnpm test:e2e` либо установить Chromium через `pnpm exec playwright install chromium`.
+
+## Рабочий цикл
+
+```sh
+bd ready --json
+bd create "Краткое описание задачи" --type task
+bd show <id>
+bd update <id> --status in_progress
+# Изменение и проверки
+pnpm check:changed
+bd close <id> --reason "Implemented and verified"
+pnpm beads:export
+```
+
+Используйте небольшие Conventional Commits: `feat(core): ...`, `fix(web): ...`, `test(harness): ...`. `pre-commit` проверяет staged-изменения, `commit-msg` — сообщение, `pre-push` — весь проект. После клонирования выполните `pnpm beads:init`; импортируйте `.beads/issues.jsonl` только если требуется восстановить переданный snapshot в новой базе. Snapshot не является синхронизацией Dolt.
+
+## Что подключить при развитии проекта
+
+Namespace `@starter-app/*` закреплён в manifests и правилах `scripts/`; переименовывайте его согласованно. Git remote, Beads remote и защита ветки задаются отдельно для нового проекта. Native build, установщики, TDLib, GitHub Pages и release workflow из `proteus` привязаны к его продукту и в пустую основу не включены. При добавлении Rust создайте пакетный `check:rust` с rustfmt, clippy и тестами, а также соответствующий CI job.
+
+Подробности: [архитектура](docs/architecture.md), [харнесс](docs/harness.md), [стандарт кода](docs/code-style.md), [инструкции агентам](AGENTS.md).

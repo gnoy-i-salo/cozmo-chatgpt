@@ -1,0 +1,17 @@
+specification {
+  element module
+  element workspace
+}
+
+model {
+  starter = workspace "Starter workspace" {
+    description "Empty pnpm monorepo. Add module elements with package/path metadata as workspaces are created."
+  }
+}
+
+views {
+  view overview {
+    include *
+    autoLayout LeftRight
+  }
+}

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+target/
+.cache/
+.pnpm-store/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+apps/desktop/src-tauri/gen/
+.husky/_/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
